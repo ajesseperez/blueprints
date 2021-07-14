@@ -1,0 +1,112 @@
+blueprint:
+  name: CastControl
+  description: Control TVs that are connected to a Chromecast based on status
+  domain: automation
+  input:
+    chromecast:
+      name: Chromecast
+      description: This is the Chromecast to be syncronized to the TV.
+      selector:
+        entity:
+          integration: cast
+          domain: media_player
+    time_to_wait_cc:
+      name: Time To Wait (Chromecast)
+      description: Time to wait for Things to Timeout in seconds.
+      default: 300
+      selector:
+        number:
+          min: 0
+          max: 3600
+          unit_of_measurement: seconds
+    tv_switch:
+      name: TV Switch
+      description: This is the TV to be controled by the Chromecast.
+      selector:
+        entity:
+          domain: switch
+    time_to_wait_tv:
+      name: Time To Wait (TV)
+      description: Time to wait for Things to Timeout in seconds.
+      default: 600
+      selector:
+        number:
+          min: 0
+          max: 3600
+          unit_of_measurement: seconds
+
+mode: restart
+max_exceeded: silent
+
+trigger:
+  - platform: state
+    id: "CC-ON"
+    entity_id: !input chromecast
+    to: "playing"
+  # - platform: state
+  #   id: "CC-OFF"
+  #   entity_id: !input chromecast
+  #   from: "playing"
+  # - platform: state
+  #   id: "CC-ON-TIMED"
+  #   entity_id: !input chromecast
+  #   to: "playing"
+  #   for: !input time_to_wait_cc
+  - platform: state
+    id: "CC-OFF-TIMED"
+    entity_id: !input chromecast
+    from: "playing"
+    for: !input time_to_wait_cc
+  # - platform: state
+  #   id: "TV-ON"
+  #   entity_id: !input tv_switch
+  #   to: "on"
+  # - platform: state
+  #   id: "TV-OFF"
+  #   entity_id: !input tv_switch
+  #   to: "off"
+  - platform: state
+    id: "TV-OFF-TIMED"
+    entity_id: !input tv_switch
+    to: "off"
+    for: !input time_to_wait_tv
+  # - platform: state
+  #   id: "TV-ON-TIMED"
+  #   entity_id: !input tv_switch
+  #   to: "on"
+  #   for: !input time_to_wait_tv
+action:
+  - choose:
+      - conditions:
+          - condition: trigger
+            id: "CC-ON"
+          - condition: state
+            entity_id: !input tv_switch
+            state: "off"
+        sequence:
+          - service: switch.turn_on
+            target:
+              entity_id: !input tv_switch
+
+      - conditions:
+          - condition: trigger
+            id: "CC-OFF-TIMED"
+          - condition: state
+            entity_id: !input tv_switch
+            state: "on"
+        sequence:
+          - service: switch.turn_off
+            target:
+              entity_id: !input tv_switch
+
+      - conditions:
+          - condition: trigger
+            id: "TV-OFF-TIMED"
+          - condition: state
+            entity_id: !input chromecast
+            state: "playing"
+        sequence:
+          - service: media_player.turn_off
+            target:
+              entity_id: !input chromecast
+    default: []
